@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starfire Lock & Door - CMS & Document Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @media print {
+            body { background: white !important; }
+            .no-print { display: none !important; }
+            .print-container { box-shadow: none !important; border: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col">
+
+    <!-- Header Navigation -->
+    <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex flex-wrap justify-between items-center no-print">
+        <div class="flex items-center space-x-3">
+            <div class="bg-amber-600 text-white p-2.5 rounded-lg font-bold text-xl shadow-md">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-wide text-white">Starfire Lock & Door Specialists, Inc.</h1>
+                <p class="text-xs text-slate-400">Customer Management & Document Generator</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3 mt-3 sm:mt-0">
+            <button onclick="openAddCustomerModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow">
+                <i class="fa-solid fa-user-plus mr-2"></i>Add Customer
+            </button>
+            <button onclick="openAddJobModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow">
+                <i class="fa-solid fa-location-dot mr-2"></i>Add Job / Location
+            </button>
+            <button onclick="exportDatabase()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-2 rounded-lg text-sm font-semibold transition" title="Backup Database">
+                <i class="fa-solid fa-download"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow p-6 max-w-7xl mx-auto w-full">
+        
+        <!-- View Switcher / Search bar -->
+        <div id="dashboard-view" class="space-y-6">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-800 p-4 rounded-xl border border-slate-700 no-print">
+                <div class="relative w-full md:w-96">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                        <i class="fa-solid fa-search"></i>
+                    </span>
+                    <input type="text" id="searchInput" oninput="filterCustomerList()" placeholder="Search alphabetized customers, stores, or cities..." 
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+                </div>
+                <div class="text-sm text-slate-400">
+                    Showing <span id="customerCount" class="font-semibold text-white">0</span> records (Alphabetized A-Z)
+                </div>
+            </div>
+
+            <!-- Customer List Table -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl no-print">
+                <div class="overflow-x-auto max-h-[70vh]">
+                    <table class="w-full text-left border-collapse sticky top-0">
+                        <thead class="sticky top-0 bg-slate-700 text-slate-300 text-xs uppercase tracking-wider z-10">
+                            <tr>
+                                <th class="py-3 px-4">Customer Name</th>
+                                <th class="py-3 px-4">Job / Service Location</th>
+                                <th class="py-3 px-4">Address / City</th>
+                                <th class="py-3 px-4">Phone</th>
+                                <th class="py-3 px-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customerTableBody" class="divide-y divide-slate-700 text-sm">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Document Generator View -->
+        <div id="document-view" class="hidden space-y-6">
+            <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 no-print">
+                <button onclick="backToDashboard()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+                    <i class="fa-solid fa-arrow-left mr-2"></i>Back to Customer List
+                </button>
+                <div class="flex space-x-3">
+                    <button onclick="setDocType('Invoice')" id="btnInvoiceTab" class="px-4 py-2 rounded-lg text-sm font-semibold transition bg-blue-600 text-white">Invoice Mode</button>
+                    <button onclick="setDocType('Estimate')" id="btnEstimateTab" class="px-4 py-2 rounded-lg text-sm font-semibold transition bg-slate-700 text-slate-300">Estimate Mode</button>
+                    <button onclick="window.print()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow">
+                        <i class="fa-solid fa-print mr-2"></i>Print / Save PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Printable PDF Mockup Container -->
+            <div id="printableDocument" class="print-container bg-white text-slate-900 p-8 rounded-xl shadow-2xl max-w-4xl mx-auto border border-slate-300 space-y-6">
+                
+                <!-- Company Header -->
+                <div class="flex justify-between items-start border-b pb-6">
+                    <div>
+                        <h2 class="text-xl font-black text-slate-900 tracking-tight">Starfire Lock & Door Specialists, Inc.</h2>
+                        <p class="text-xs text-slate-600">1461 SW 30th Ave Bay #24</p>
+                        <p class="text-xs text-slate-600">Pompano Beach, FL 33069</p>
+                        <p class="text-xs text-slate-600 mt-1">Office (954) 532-5680 | Fax (561) 479-1077</p>
+                    </div>
+                    <div class="text-right">
+                        <h3 id="docTitle" class="text-2xl font-bold uppercase tracking-wider text-slate-800">Invoice</h3>
+                        <div class="text-xs text-slate-600 mt-2">
+                            <span class="font-semibold">Date:</span> <input type="date" id="docDate" class="border rounded px-1 py-0.5 text-xs">
+                        </div>
+                        <div class="text-xs text-slate-600 mt-1">
+                            <span id="docNumberLabel" class="font-semibold">Invoice #:</span> <input type="text" id="docNumber" value="18106" class="border rounded px-1 py-0.5 w-24 text-xs font-semibold">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Addresses Grid -->
+                <div class="grid grid-cols-2 gap-6 text-sm">
+                    <div class="border rounded-lg p-4 bg-slate-50">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Bill To / Customer</label>
+                        <textarea id="billToText" rows="4" class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:outline-none"></textarea>
+                    </div>
+                    <div class="border rounded-lg p-4 bg-slate-50">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Service Location / Job Site</label>
+                        <textarea id="serviceLocationText" rows="4" class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:outline-none"></textarea>
+                    </div>
+                </div>
+
+                <!-- Meta Fields Bar -->
+                <div class="grid grid-cols-4 gap-4 text-xs bg-slate-100 p-3 rounded-lg border border-slate-200">
+                    <div>
+                        <span class="font-semibold text-slate-600 block">P.O. Number</span>
+                        <input type="text" id="poNumber" class="w-full border rounded px-2 py-1 mt-1 bg-white" placeholder="P.O. #">
+                    </div>
+                    <div>
+                        <span class="font-semibold text-slate-600 block">Terms</span>
+                        <input type="text" id="terms" value="Net 30" class="w-full border rounded px-2 py-1 mt-1 bg-white">
+                    </div>
+                    <div>
+                        <span class="font-semibold text-slate-600 block">Tech</span>
+                        <input type="text" id="tech" value="C" class="w-full border rounded px-2 py-1 mt-1 bg-white">
+                    </div>
+                    <div>
+                        <span class="font-semibold text-slate-600 block">Completed Date</span>
+                        <input type="date" id="completedDate" class="w-full border rounded px-2 py-1 mt-1 bg-white">
+                    </div>
+                </div>
+
+                <!-- Line Items Table -->
+                <div>
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-800 text-white">
+                                <th class="p-2.5 w-16 text-center">Qty</th>
+                                <th class="p-2.5 w-24">Item Code</th>
+                                <th class="p-2.5">Description</th>
+                                <th class="p-2.5 w-28 text-right">Price Each</th>
+                                <th class="p-2.5 w-28 text-right">Amount</th>
+                                <th class="p-2.5 w-10 text-center no-print"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="lineItemsBody" class="divide-y divide-slate-200 border-b"></tbody>
+                    </table>
+                    <div class="mt-3 no-print">
+                        <button onclick="addLineItem()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-1.5 rounded transition">
+                            <i class="fa-solid fa-plus mr-1"></i>Add Line Item
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Totals Section -->
+                <div class="flex justify-end pt-2">
+                    <div class="w-64 space-y-2 text-xs">
+                        <div class="flex justify-between py-1 border-b">
+                            <span class="font-bold text-slate-600">Subtotal:</span>
+                            <span id="subtotalDisplay" class="font-semibold">$0.00</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b items-center">
+                            <span class="font-bold text-slate-600">Sales Tax (%):</span>
+                            <input type="number" id="taxRate" value="0.00" oninput="calculateTotals()" class="w-16 border rounded px-1 py-0.5 text-right">
+                        </div>
+                        <div class="flex justify-between py-2 text-sm font-bold bg-slate-100 px-2 rounded">
+                            <span class="text-slate-900">Total:</span>
+                            <span id="totalDisplay" class="text-slate-900">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Add Customer -->
+    <div id="customerModal" class="fixed inset-0 bg-black/70 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <h3 class="text-lg font-bold text-white flex items-center"><i class="fa-solid fa-user-plus mr-2 text-blue-500"></i>Add New Customer</h3>
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Customer / Company Name</label>
+                    <input type="text" id="newCustName" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-blue-500" placeholder="e.g. Glass & Doors USA LLC">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Billing Address</label>
+                    <textarea id="newCustAddress" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-blue-500" placeholder="Street Address"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">City, State, Zip</label>
+                    <input type="text" id="newCustCityZip" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-blue-500" placeholder="e.g. Orange City, Florida 32763">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Phone / Fax</label>
+                    <input type="text" id="newCustPhone" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-blue-500" placeholder="Phone number">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 pt-2">
+                <button onclick="closeModals()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Cancel</button>
+                <button onclick="saveNewCustomer()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Save Customer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Job / Location -->
+    <div id="jobModal" class="fixed inset-0 bg-black/70 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <h3 class="text-lg font-bold text-white flex items-center"><i class="fa-solid fa-location-dot mr-2 text-emerald-500"></i>Add Service Location / Job</h3>
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Select Parent Customer</label>
+                    <select id="jobParentSelect" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-blue-500"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Job / Store Name</label>
+                    <input type="text" id="newJobName" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-blue-500" placeholder="e.g. Starbucks #68475">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Street Address</label>
+                    <input type="text" id="newJobAddress" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-blue-500" placeholder="1780 NW 17th Pl">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">City, State, Zip</label>
+                    <input type="text" id="newJobCityZip" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-blue-500" placeholder="Miami, Florida 33182">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Phone</label>
+                    <input type="text" id="newJobPhone" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-blue-500" placeholder="Phone number">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 pt-2">
+                <button onclick="closeModals()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Cancel</button>
+                <button onclick="saveNewJob()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Save Job</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script with Embedded Database -->
+    <script>
+        // Full historical customer dataset embedded directly into index.html
+        let defaultDatabase = [
+            {
+                customer: "Fox Glass Co. Inc.",
+                address: "1035 Tifford Lane",
+                cityZip: "Osteen, FL 32764",
+                phone: "foxglass@foxglassinc.com",
+                jobs: [
+                    { name: "Starbucks #68475", address: "1780 NW 17th Pl", cityZip: "Miami, Florida 33182", phone: "" },
+                    { name: "Dollar General #10506", address: "7201 Lakeworth Rd", cityZip: "Lake Worth, Fl 33467", phone: "" },
+                    { name: "Coopers Hawk #27", address: "4473 Lyons Rd", cityZip: "Coconut Creek, FL 33070", phone: "954-861-4699" },
+                    { name: "Dollar General DG 09975", address: "7090 State Road HWY 24", cityZip: "Cedar Key, FL 32625", phone: "" },
+                    { name: "Fox Glass Orlando", address: "3038 John Young Parkway", cityZip: "Orlando, Florida 32804", phone: "1-800-329-9942" }
+                ]
+            },
+            {
+                customer: "Glass & Doors USA LLC",
+                address: "2751 Enterprise Rd, Suite 215",
+                cityZip: "Orange City, Florida 32763",
+                phone: "",
+                jobs: [
+                    { name: "Chipotle #3203", address: "3275 Vineland Rd.", cityZip: "Kissimmee, Florida", phone: "" }
+                ]
+            },
+            {
+                customer: "1st Choice Facilities Services",
+                address: "",
+                cityZip: "",
+                phone: "",
+                jobs: [
+                    { name: "Advance America 0501", address: "2402 N State Road 7", cityZip: "Margate, Florida 33063", phone: "954 971-3063" },
+                    { name: "Cash Adv. Amer 4099", address: "14560 Military Tr.", cityZip: "Delray Beach, Florida 33484", phone: "561-638-5305" }
+                ]
+            }
+        ];
+
+        let database = JSON.parse(localStorage.getItem('starfire_cms_db')) || defaultDatabase;
+        let currentDocType = 'Invoice';
+        let currentLineItems = [];
+
+        function saveDb() {
+            localStorage.setItem('starfire_cms_db', JSON.stringify(database));
+        }
+
+        function exportDatabase() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(database, null, 2));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", "starfire_customer_database.json");
+            dlAnchorElem.click();
+        }
+
+        function sortDatabaseAlphabetically() {
+            database.sort((a, b) => a.customer.localeCompare(b.customer));
+            database.forEach(cust => {
+                if (cust.jobs) {
+                    cust.jobs.sort((a, b) => a.name.localeCompare(b.name));
+                }
+            });
+        }
+
+        function renderTable(filter = '') {
+            sortDatabaseAlphabetically();
+            const tbody = document.getElementById('customerTableBody');
+            tbody.innerHTML = '';
+            let count = 0;
+
+            database.forEach((cust, cIdx) => {
+                if (cust.jobs && cust.jobs.length > 0) {
+                    cust.jobs.forEach((job, jIdx) => {
+                        const rowText = `${cust.customer} ${job.name} ${job.address} ${job.cityZip}`.toLowerCase();
+                        if (filter === '' || rowText.includes(filter.toLowerCase())) {
+                            count++;
+                            const tr = document.createElement('tr');
+                            tr.className = 'hover:bg-slate-750 transition border-b border-slate-700';
+                            tr.innerHTML = `
+                                <td class="py-3 px-4 font-medium text-white">${cust.customer}</td>
+                                <td class="py-3 px-4 text-emerald-400 font-semibold">${job.name}</td>
+                                <td class="py-3 px-4 text-slate-300">${job.address}, ${job.cityZip}</td>
+                                <td class="py-3 px-4 text-slate-400">${job.phone || '-'}</td>
+                                <td class="py-3 px-4 text-right space-x-2">
+                                    <button onclick="openDocumentGenerator(${cIdx}, ${jIdx}, 'Invoice')" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded text-xs font-semibold transition">Invoice</button>
+                                    <button onclick="openDocumentGenerator(${cIdx}, ${jIdx}, 'Estimate')" class="bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1 rounded text-xs font-semibold transition">Estimate</button>
+                                </td>
+                            `;
+                            tbody.appendChild(tr);
+                        }
+                    });
+                } else {
+                    const rowText = `${cust.customer}`.toLowerCase();
+                    if (filter === '' || rowText.includes(filter.toLowerCase())) {
+                        count++;
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-slate-750 transition border-b border-slate-700';
+                        tr.innerHTML = `
+                            <td class="py-3 px-4 font-medium text-white">${cust.customer}</td>
+                            <td class="py-3 px-4 text-slate-500 italic">No specific jobs listed</td>
+                            <td class="py-3 px-4 text-slate-300">${cust.address || ''} ${cust.cityZip || ''}</td>
+                            <td class="py-3 px-4 text-slate-400">${cust.phone || '-'}</td>
+                            <td class="py-3 px-4 text-right space-x-2">
+                                <button onclick="openDocumentGenerator(${cIdx}, null, 'Invoice')" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded text-xs font-semibold transition">Invoice</button>
+                                <button onclick="openDocumentGenerator(${cIdx}, null, 'Estimate')" class="bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1 rounded text-xs font-semibold transition">Estimate</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    }
+                }
+            });
+            document.getElementById('customerCount').innerText = count;
+        }
+
+        function filterCustomerList() {
+            const query = document.getElementById('searchInput').value;
+            renderTable(query);
+        }
+
+        function openAddCustomerModal() {
+            document.getElementById('customerModal').classList.remove('hidden');
+        }
+
+        function openAddJobModal() {
+            sortDatabaseAlphabetically();
+            const select = document.getElementById('jobParentSelect');
+            select.innerHTML = '';
+            database.forEach((cust, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.text = cust.customer;
+                select.appendChild(opt);
+            });
+            document.getElementById('jobModal').classList.remove('hidden');
+        }
+
+        function closeModals() {
+            document.getElementById('customerModal').classList.add('hidden');
+            document.getElementById('jobModal').classList.add('hidden');
+        }
+
+        function saveNewCustomer() {
+            const name = document.getElementById('newCustName').value.trim();
+            const address = document.getElementById('newCustAddress').value.trim();
+            const cityZip = document.getElementById('newCustCityZip').value.trim();
+            const phone = document.getElementById('newCustPhone').value.trim();
+
+            if (!name) { alert('Please enter a customer name.'); return; }
+
+            database.push({ customer: name, address: address, cityZip: cityZip, phone: phone, jobs: [] });
+            saveDb();
+            renderTable();
+            closeModals();
+            document.getElementById('newCustName').value = '';
+            document.getElementById('newCustAddress').value = '';
+            document.getElementById('newCustCityZip').value = '';
+            document.getElementById('newCustPhone').value = '';
+        }
+
+        function saveNewJob() {
+            const cIdx = document.getElementById('jobParentSelect').value;
+            const jobName = document.getElementById('newJobName').value.trim();
+            const address = document.getElementById('newJobAddress').value.trim();
+            const cityZip = document.getElementById('newJobCityZip').value.trim();
+            const phone = document.getElementById('newJobPhone').value.trim();
+
+            if (!jobName) { alert('Please enter a job / store name.'); return; }
+
+            database[cIdx].jobs.push({ name: jobName, address: address, cityZip: cityZip, phone: phone });
+            saveDb();
+            renderTable();
+            closeModals();
+            document.getElementById('newJobName').value = '';
+            document.getElementById('newJobAddress').value = '';
+            document.getElementById('newJobCityZip').value = '';
+            document.getElementById('newJobPhone').value = '';
+        }
+
+        function openDocumentGenerator(cIdx, jIdx, type) {
+            const cust = database[cIdx];
+            const job = jIdx !== null && cust.jobs[jIdx] ? cust.jobs[jIdx] : null;
+
+            setDocType(type);
+
+            let billToHTML = `${cust.customer}\n${cust.address || ''}\n${cust.cityZip || ''}`;
+            if (cust.phone) billToHTML += `\n${cust.phone}`;
+            document.getElementById('billToText').value = billToHTML.trim();
+
+            let locHTML = job ? `${job.name}\n${job.address}\n${job.cityZip}` : `${cust.customer} - Main Facility`;
+            document.getElementById('serviceLocationText').value = locHTML.trim();
+
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('docDate').value = today;
+            document.getElementById('completedDate').value = today;
+            document.getElementById('docNumber').value = Math.floor(100000 + Math.random() * 900000);
+
+            if (type === 'Invoice') {
+                currentLineItems = [
+                    { qty: 1, code: 'SCP', desc: 'Service Call Premium Hour', price: 120.00 },
+                    { qty: 1, code: 'LP', desc: 'Labor Premium Hour', price: 157.50 }
+                ];
+            } else {
+                currentLineItems = [
+                    { qty: 1, code: 'SC', desc: 'Service Call', price: 80.00 },
+                    { qty: 1.5, code: 'LAB', desc: 'Labor Temp/Assess', price: 105.00 },
+                    { qty: 1, code: 'HOD', desc: '35 x 8.0 Hollow metal door', price: 816.00 },
+                    { qty: 1, code: 'HNG', desc: 'Continuous hinge', price: 249.00 },
+                    { qty: 1, code: 'DEV', desc: 'Grade 1 Fire-rated Exit Device', price: 768.00 }
+                ];
+            }
+
+            renderLineItems();
+            document.getElementById('dashboard-view').classList.add('hidden');
+            document.getElementById('document-view').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function backToDashboard() {
+            document.getElementById('document-view').classList.add('hidden');
+            document.getElementById('dashboard-view').classList.remove('hidden');
+        }
+
+        function setDocType(type) {
+            currentDocType = type;
+            const titleEl = document.getElementById('docTitle');
+            const numLabel = document.getElementById('docNumberLabel');
+            const invTab = document.getElementById('btnInvoiceTab');
+            const estTab = document.getElementById('btnEstimateTab');
+
+            titleEl.innerText = type;
+            numLabel.innerText = type + ' #';
+
+            if (type === 'Invoice') {
+                invTab.className = "px-4 py-2 rounded-lg text-sm font-semibold transition bg-blue-600 text-white";
+                estTab.className = "px-4 py-2 rounded-lg text-sm font-semibold transition bg-slate-700 text-slate-300";
+            } else {
+                estTab.className = "px-4 py-2 rounded-lg text-sm font-semibold transition bg-amber-600 text-white";
+                invTab.className = "px-4 py-2 rounded-lg text-sm font-semibold transition bg-slate-700 text-slate-300";
+            }
+        }
+
+        function renderLineItems() {
+            const tbody = document.getElementById('lineItemsBody');
+            tbody.innerHTML = '';
+            currentLineItems.forEach((item, index) => {
+                const amount = item.qty * item.price;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2"><input type="number" step="any" value="${item.qty}" oninput="updateItem(${index}, 'qty', this.value)" class="w-16 border rounded px-1 py-0.5 text-center"></td>
+                    <td class="p-2"><input type="text" value="${item.code}" oninput="updateItem(${index}, 'code', this.value)" class="w-full border rounded px-1 py-0.5"></td>
+                    <td class="p-2"><input type="text" value="${item.desc}" oninput="updateItem(${index}, 'desc', this.value)" class="w-full border rounded px-1 py-0.5"></td>
+                    <td class="p-2 text-right"><input type="number" step="0.01" value="${item.price.toFixed(2)}" oninput="updateItem(${index}, 'price', this.value)" class="w-24 border rounded px-1 py-0.5 text-right"></td>
+                    <td class="p-2 text-right font-semibold text-slate-800">$${amount.toFixed(2)}</td>
+                    <td class="p-2 text-center no-print"><button onclick="removeLineItem(${index})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            calculateTotals();
+        }
+
+        function addLineItem() {
+            currentLineItems.push({ qty: 1, code: '', desc: '', price: 0.00 });
+            renderLineItems();
+        }
+
+        function removeLineItem(index) {
+            currentLineItems.splice(index, 1);
+            renderLineItems();
+        }
+
+        function updateItem(index, field, value) {
+            if (field === 'qty' || field === 'price') {
+                currentLineItems[index][field] = parseFloat(value) || 0;
+            } else {
+                currentLineItems[index][field] = value;
+            }
+            renderLineItems();
+        }
+
+        function calculateTotals() {
+            let subtotal = 0;
+            currentLineItems.forEach(item => {
+                subtotal += (item.qty * item.price);
+            });
+            const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
+            const taxAmount = subtotal * (taxRate / 100);
+            const total = subtotal + taxAmount;
+
+            document.getElementById('subtotalDisplay').innerText = '$' + subtotal.toFixed(2);
+            document.getElementById('totalDisplay').innerText = '$' + total.toFixed(2);
+        }
+
+        window.onload = function() {
+            renderTable();
+        };
+    </script>
+</body>
+</html>
